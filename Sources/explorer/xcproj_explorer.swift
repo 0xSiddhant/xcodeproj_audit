@@ -1,6 +1,6 @@
 // The Swift Programming Language
 // https://docs.swift.org/swift-book
-// 
+//
 // Swift Argument Parser
 // https://swiftpackageindex.com/apple/swift-argument-parser/documentation
 
@@ -14,13 +14,14 @@ struct XCProjExplorer: ParsableCommand {
         commandName: "xcproj-explorer",
         abstract: "Explore and analyse Xcode project files.",
         discussion: """
-           Analyse an .xcodeproj or .xcworkspace and generate reports.
-           
-           EXAMPLES:
-             swift run xcproj-explorer --path ./MyApp.xcodeproj --generate-dashboard
-             swift run xcproj-explorer --path ./MyApp.xcworkspace --generate-meta
-             swift run xcproj-explorer --path ./MyApp.xcodeproj --generate-dashboard --generate-meta
-           """,
+        Pass --generate-dashboard-report for a full report, or
+        pick individual operations to run selectively.
+        
+        EXAMPLES:
+          swift run xcproj-explorer --path ./MyApp.xcodeproj --generate-dashboard-report
+          swift run xcproj-explorer --path ./MyApp.xcodeproj --generate-meta --empty-files
+          swift run xcproj-explorer --path ./MyApp.xcodeproj --n-largest-files-by-lines 10
+        """,
         version: "1.0.0"
     )
     
@@ -32,44 +33,6 @@ struct XCProjExplorer: ParsableCommand {
         transform: { Path.current + $0 }
     )
     var path: Path?                                  // optional so --help works standalone
-    
-    // MARK: - Flags (standalone or combined with --path)
-    
-    @Flag(
-        name: .long,
-        help: "Print project metadata (name, targets, SPM dependencies, build settings)"
-    )
-    var generateMeta: Bool = false
-    
-    @Flag(
-        name: .long,
-        help: "Generate full code stats dashboard (lines, words, files by type)"
-    )
-    var generateCodeStats: Bool = false
-    
-    @Flag(
-        name: .long,
-        help: "Generate full dashboard report (metadata, code stats, etc.)"
-    )
-    var generateDashboardReport: Bool = false
-    
-    @Flag(
-        name: .long,
-        help: "Detect missing files referenced in project but absent on disk"
-    )
-    var detectMissingFiles: Bool = false
-    
-    @Flag(
-        name: .long,
-        help: "List all orphaned files on disk not referenced by any target"
-    )
-    var detectOrphanedFiles: Bool = false
-    
-    @Flag(
-        name: .long,
-        help: "Show full target dependency graph"
-    )
-    var dependencyGraph: Bool = false
     
     @Option(
         name: .long,
@@ -85,43 +48,56 @@ struct XCProjExplorer: ParsableCommand {
     )
     var NLargestFilesByWords: Int?
     
+    // MARK: - Flags (standalone or combined with --path)
     @Flag(
         name: .long,
-        help: "Show list of Empty Files"
+        help: "Generate full dashboard report — runs all operations in one shot"
     )
-    var emptyFiles: Bool = false
+    var generateDashboardReport: Bool = false
+    
+    @Flag(help: "Select individual operations to run")
+    var operations: [Operation] = []
+    
+    mutating func validate() throws {
+        // --generate-dashboard-report and individual ops are mutually exclusive
+        if generateDashboardReport && !operations.isEmpty {
+            throw ValidationError(
+                "--generate-dashboard-report already includes all operations. " +
+                "Remove individual operation flags when using it."
+            )
+        }
+        
+        // Any operation requires --path
+        let needsPath = generateDashboardReport
+        || !operations.isEmpty
+        || NLargestFilesByLines != nil
+        || NLargestFilesByWords != nil
+        
+        if needsPath && path == nil {
+            throw ValidationError(
+                "--path is required. Provide a path to .xcodeproj or .xcworkspace."
+            )
+        }
+    }
     
     mutating func run() throws {
         // Flags that don't need --path
         // (--help and --version are handled automatically by ArgumentParser)
         
-        // All other operations require --path
-        let operations: [Bool] = [
-            generateMeta,
-            generateCodeStats,
-            generateDashboardReport,
-            detectMissingFiles,
-            detectOrphanedFiles,
-            dependencyGraph,
-            NLargestFilesByLines != nil,
-            NLargestFilesByWords != nil,
-            emptyFiles
-        ]
-        
-        // No flags passed at all — print help
-        guard operations.contains(true) else {
+        guard generateDashboardReport
+                || !operations.isEmpty
+                || NLargestFilesByLines != nil
+                || NLargestFilesByWords != nil
+        else {
+            // No flags passed at all — print help
             print(XCProjExplorer.helpMessage())
             return
         }
         
-        // --path is required if any operation flag is passed
-        guard let projectPath = path else {
-            throw ValidationError(
-                "--path is required. Provide a path to .xcodeproj or .xcworkspace"
-            )
-        }
-        guard projectPath.exists else {
-            throw ValidationError("No file found at path: \(projectPath.string)")
+        
+        guard let projectPath = path,
+              projectPath.exists else {
+            throw ValidationError("No file found at path: \(path?.string ?? "")")
         }
         
         // Load project once — reuse across all operations
@@ -132,20 +108,17 @@ struct XCProjExplorer: ParsableCommand {
         try projects.forEach {
             let dashboard = DashboardManager(xcodeProj: $0.project, root: projectRoot)
             
-            if generateMeta {
-                dashboard.generateMeta()
-            }
-            
-            if generateCodeStats {
-                dashboard.generateCodeStats()
-            }
-            
             if generateDashboardReport {
                 try dashboard.generateDashboard()
+                return
             }
             
-            if detectOrphanedFiles {
-                dashboard.fetchOrphansFileReport()
+            // Individual operations
+            for operation in operations {
+                try runOperation(
+                    operation,
+                    dashboard: dashboard
+                )
             }
             
             if let NLargestFilesByLines {
@@ -155,10 +128,31 @@ struct XCProjExplorer: ParsableCommand {
             if let NLargestFilesByWords {
                 try dashboard.fetchTopNFilesByWords(NLargestFilesByWords)
             }
+        }
+    }
+    
+    private func runOperation(
+        _ operation: Operation,
+        dashboard: DashboardManager,
+    ) throws {
+        switch operation {
+        case .generateMeta:
+            dashboard.generateMeta()
             
-            if emptyFiles {
-                dashboard.fetchEmptyFiles()
-            }
+        case .generateCodeStats:
+            dashboard.generateCodeStats()
+            
+        case .detectMissingFiles:
+            break
+            
+        case .detectOrphanedFiles:
+            dashboard.fetchOrphansFileReport()
+            
+        case .dependencyGraph:
+            break
+            
+        case .emptyFiles:
+            dashboard.fetchEmptyFiles()
         }
     }
 }
