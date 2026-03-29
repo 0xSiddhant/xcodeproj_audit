@@ -11,6 +11,25 @@ public enum ProjectSource: Equatable {
     case workspace(Path)
     case project(Path)
 
+    /// Detects whether the given path refers to an Xcode workspace or project, or contains one.
+    ///
+    /// This method inspects the provided path in two steps:
+    /// 1. If the path itself has a recognized extension, it immediately returns the corresponding case:
+    ///    - `.xcworkspace` → `.workspace(path)`
+    ///    - `.xcodeproj`   → `.project(path)`
+    /// 2. Otherwise, it attempts to auto-detect by searching the directory at `path` for the first matching bundle:
+    ///    - Looks for `*.xcworkspace` and returns `.workspace` if found
+    ///    - Looks for `*.xcodeproj` and returns `.project` if found
+    ///
+    /// If neither condition is satisfied, the method throws `ProjectError.notFound` with the original path.
+    ///
+    /// - Parameter path: The file system `Path` to a workspace/project bundle, or a directory to scan.
+    /// - Returns: A `ProjectSource` representing either a workspace or project found at or within `path`.
+    /// - Throws: `ProjectError.notFound(path)` if no `.xcworkspace` or `.xcodeproj` can be identified.
+    /// - Note:
+    ///   - When scanning a directory, only the first matching item (if any) is returned.
+    ///   - No existence checks are performed beyond locating matching items; ensure the path is accessible.
+    ///   - This method does not resolve symlinks; pass a resolved path if needed.
     public static func detect(at path: Path) throws -> ProjectSource {
         if path.extension == "xcworkspace" { return .workspace(path) }
         if path.extension == "xcodeproj"   { return .project(path) }
@@ -22,6 +41,13 @@ public enum ProjectSource: Equatable {
         throw ProjectError.notFound(path)
     }
     
+    /// Compares two ProjectSource values for equality by matching both their case and associated Path values.
+    ///
+    /// - Parameters:
+    ///   - lhs: The left-hand ProjectSource to compare.
+    ///   - rhs: The right-hand ProjectSource to compare.
+    /// - Returns: `true` if both values are the same case (`.workspace` or `.project`) and their associated `Path`s are equal; otherwise, `false`.
+    /// - Note: A `.workspace` is never considered equal to a `.project`, even if their underlying paths resolve to the same directory.
     public static func == (lhs: ProjectSource, rhs: ProjectSource) -> Bool {
         if case let .workspace(lhsPath) = lhs, case let .workspace(rhsPath) = rhs {
             return lhsPath == rhsPath
@@ -32,6 +58,14 @@ public enum ProjectSource: Equatable {
         return false
     }
     
+    /// The underlying file system path associated with the project source.
+    ///
+    /// - For `.workspace`, this is the full `Path` to the `.xcworkspace` bundle.
+    /// - For `.project`, this is the full `Path` to the `.xcodeproj` bundle.
+    ///
+    /// This path does not perform any resolution (e.g., symlinks) or existence checks; it simply
+    /// returns the stored path for the current case. Use `fetchRootPath()` if you need the parent
+    /// directory of the project source.
     private var path: Path {
         switch self {
         case .workspace(let path):
@@ -40,6 +74,24 @@ public enum ProjectSource: Equatable {
             return path
         }
     }
+    
+    /// Returns the root directory for the selected project source.
+    ///
+    /// - For a workspace (`.xcworkspace`), this is the parent directory of the workspace file.
+    /// - For a project (`.xcodeproj`), this is the parent directory of the project file.
+    ///
+    /// - Returns: The parent `Path` of the underlying `.xcworkspace` or `.xcodeproj`.
+    /// - Throws: Rethrows any underlying errors in future implementations (currently none).
+    /// - Note: This does not resolve symlinks or perform existence checks; it purely returns the parent path.
+    func fetchRootPath() throws -> Path {
+        switch self {
+        case .workspace(let path):
+            return path.parent()
+        case .project(let path):
+            return path.parent()
+        }
+    }
+    
     // MARK: - Fetch
     /// Fetches all .xcodeproj files referenced in a .xcworkspace,
     /// optionally skipping vendored (Pods, Carthage, SPM) projects.
