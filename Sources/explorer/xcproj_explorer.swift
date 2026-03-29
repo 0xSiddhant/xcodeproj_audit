@@ -71,6 +71,19 @@ struct XCProjExplorer: ParsableCommand {
     )
     var dependencyGraph: Bool = false
     
+    @Option(
+        name: .long,
+        help: "List N largest file by lines count",
+        transform: { Int($0)}
+    )
+    var NLargestFilesByLines: Int?
+    
+    @Option(
+        name: .long,
+        help: "List N largest file by words count",
+        transform: { Int($0) }
+    )
+    var NLargestFilesByWords: Int?
     
     mutating func run() throws {
         // Flags that don't need --path
@@ -83,7 +96,9 @@ struct XCProjExplorer: ParsableCommand {
             generateDashboardReport,
             detectMissingFiles,
             detectOrphanedFiles,
-            dependencyGraph
+            dependencyGraph,
+            NLargestFilesByLines != nil,
+            NLargestFilesByWords != nil
         ]
         
         // No flags passed at all — print help
@@ -111,15 +126,27 @@ struct XCProjExplorer: ParsableCommand {
             let dashboard = DashboardManager(xcodeProj: $0.project, root: projectRoot)
             
             if generateMeta {
-                try dashboard.generateMeta()
+                dashboard.generateMeta()
             }
             
             if generateCodeStats {
-                try dashboard.generateCodeStats()
+                dashboard.generateCodeStats()
             }
             
             if generateDashboardReport {
                 try dashboard.generateDashboard()
+            }
+            
+            if detectOrphanedFiles {
+                dashboard.fetchOrphansFileReport()
+            }
+            
+            if let NLargestFilesByLines {
+                try dashboard.fetchTopNFilesByLines(NLargestFilesByLines)
+            }
+            
+            if let NLargestFilesByWords {
+                try dashboard.fetchTopNFilesByWords(NLargestFilesByWords)
             }
         }
     }

@@ -1,12 +1,12 @@
 //
-//  DashboardResult.swift
+//  CodeStatsResult.swift
 //  xcproj_explorer
 //
 //  Created by Siddhant Kumar on 29/03/26.
 //
 
 
-struct DashboardResult: CustomStringConvertible {
+struct CodeStatsResult: CustomStringConvertible {
     let totalLines: Int
     let totalWords: Int
     let totalFiles: Int
@@ -30,5 +30,25 @@ struct DashboardResult: CustomStringConvertible {
         By extension :
         \(extStats)
         """
+    }
+}
+
+struct TopNFileResult: CustomStringConvertible {
+    let file: String
+    let lineCount: Int?
+    let wordCount: Int?
+    
+    var description: String {
+        if let lineCount {
+            return """
+                Lines: \(lineCount) \t File: \(file)
+                """
+        } else if let wordCount {
+            return """
+                Words: \(wordCount) \t File: \(file)
+                """
+        } else {
+            return "Unknown: \(file)"
+        }
     }
 }

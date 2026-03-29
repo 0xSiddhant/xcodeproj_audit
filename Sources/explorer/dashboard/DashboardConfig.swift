@@ -7,6 +7,10 @@
 
 
 struct DashboardConfig {
+    enum CountType {
+        case line(Int)
+        case word(Int)
+    }
     /// Source file extensions to include
     var includedExtensions: Set<String> = [
         "swift", "m", "mm", "cpp", "cc", "c", "h", "hpp", "metal"
@@ -23,4 +27,6 @@ struct DashboardConfig {
 
     /// Whether to count comment-only lines
     var countComments: Bool = true
+    
+    var topNCountFor: CountType?
 }
