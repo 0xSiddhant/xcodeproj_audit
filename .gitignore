@@ -1,0 +1,103 @@
+# =====================
+# Swift Package Manager
+# =====================
+.build/
+.swiftpm/
+*.resolved          # uncomment below if you WANT to commit resolved versions
+# !Package.resolved
+
+# =====
+# Xcode
+# =====
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ================
+# Xcode Playground
+# ================
+timeline.xctimeline
+playground.xcworkspace
+
+# =========
+# TestFlight
+# =========
+*.itmsp
+
+# =======
+# SwiftLint
+# =======
+.swiftlint.yml.bak
+
+# =====
+# macOS
+# =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+Icon?
+
+# =====
+# Linux
+# =====
+*~
+
+# =======
+# Windows
+# =======
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ===========
+# Environment
+# ===========
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+Secrets.swift
+Secrets/
+
+# =====
+# Logs
+# =====
+*.log
+logs/
+
+# =======
+# Editors
+# =======
+
+# VSCode
+.vscode/
+
+# JetBrains / AppCode
+.idea/
+*.iml
+
+# Vim / Neovim
+*.swp
+*.swo
+Session.vim
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
