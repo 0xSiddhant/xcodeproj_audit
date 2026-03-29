@@ -14,8 +14,6 @@ struct xcproj_explorer: ParsableCommand {
     var path: Path
     
     mutating func run() throws {
-        print("Hello, world!")
-        
         let source = try ProjectSource.detect(at: path)
         let projects = try source.fetchProjects()
         
