@@ -45,4 +45,32 @@ struct Utils {
         default:                              return "unknown"
         }
     }
+    
+    /// Walks PBXGroups to build a human-readable path like "NewsApp/Coordinators"
+    static func resolveGroupPath(
+        for fileRef: PBXFileReference,
+        in pbxproj: PBXProj
+    ) -> String {
+        
+        // Build a lookup: child UUID → parent group
+        var parentMap: [String: PBXGroup] = [:]
+        for group in pbxproj.groups {
+            for child in group.children {
+                parentMap[child.uuid] = group
+            }
+        }
+        
+        // Walk up the parent chain collecting group names
+        var segments: [String] = []
+        var current: PBXFileElement = fileRef
+        
+        while let parent = parentMap[current.uuid] {
+            if let name = parent.name ?? parent.path, !name.isEmpty {
+                segments.append(name)
+            }
+            current = parent
+        }
+        
+        return segments.reversed().joined(separator: "/")
+    }
 }

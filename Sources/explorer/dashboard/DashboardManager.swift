@@ -43,14 +43,10 @@ final class DashboardManager {
     /// - `fetchMetadata(from:)`
     /// - `generateDashboard(for:projectRoot:config:)`
     func generateDashboard() throws {
-        let metadata = ProjectMeta.fetchMetadata(from: xcodeProj.pbxproj)
-        print(metadata)
-        
-        let fileStats = CodeStats.generateCodeStats(for: xcodeProj.pbxproj, projectRoot: root, config: DashboardConfig())
-        print(fileStats)
-        
-        let orphanFiles = OrphanFileDetector.detectOrphanedFiles(in: xcodeProj.pbxproj)
-        print(orphanFiles)
+        generateMeta()
+        generateCodeStats()
+        fetchOrphansFileReport()
+        fetchEmptyFiles()
     }
     
     func generateMeta() {
@@ -76,5 +72,10 @@ final class DashboardManager {
     func fetchTopNFilesByWords(_ words: Int) throws {
         let topNFiles = try CodeStats.generateTopNLargestFiles(for: xcodeProj.pbxproj, in: root, config: DashboardConfig(topNCountFor: .word(words)))
         topNFiles.forEach { print($0) }
+    }
+    
+    func fetchEmptyFiles() {
+        let emptyFiles = EmptyFilesCheck.detectEmptyFiles(in: xcodeProj.pbxproj, projectRoot: root)
+        print(emptyFiles)
     }
 }

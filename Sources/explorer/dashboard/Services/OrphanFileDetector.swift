@@ -69,7 +69,7 @@ struct OrphanFileDetector {
         let orphanedFiles = meaningfulOrphans.compactMap { ref -> OrphanedFile? in
             guard let filePath = ref.path else { return nil }
             
-            let groupPath = resolveGroupPath(for: ref, in: pbxproj)
+            let groupPath = Utils.resolveGroupPath(for: ref, in: pbxproj)
             
             return OrphanedFile(
                 path:      filePath,
@@ -108,33 +108,5 @@ struct OrphanFileDetector {
         if skipExtensions.contains(ext) { return false }
         if ext.isEmpty { return false }             // likely a folder ref
         return codeExtensions.contains(ext)
-    }
-    
-    /// Walks PBXGroups to build a human-readable path like "NewsApp/Coordinators"
-    static private func resolveGroupPath(
-        for fileRef: PBXFileReference,
-        in pbxproj: PBXProj
-    ) -> String {
-        
-        // Build a lookup: child UUID → parent group
-        var parentMap: [String: PBXGroup] = [:]
-        for group in pbxproj.groups {
-            for child in group.children {
-                parentMap[child.uuid] = group
-            }
-        }
-        
-        // Walk up the parent chain collecting group names
-        var segments: [String] = []
-        var current: PBXFileElement = fileRef
-        
-        while let parent = parentMap[current.uuid] {
-            if let name = parent.name ?? parent.path, !name.isEmpty {
-                segments.append(name)
-            }
-            current = parent
-        }
-        
-        return segments.reversed().joined(separator: "/")
     }
 }

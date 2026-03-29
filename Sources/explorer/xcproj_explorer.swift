@@ -85,6 +85,12 @@ struct XCProjExplorer: ParsableCommand {
     )
     var NLargestFilesByWords: Int?
     
+    @Flag(
+        name: .long,
+        help: "Show list of Empty Files"
+    )
+    var emptyFiles: Bool = false
+    
     mutating func run() throws {
         // Flags that don't need --path
         // (--help and --version are handled automatically by ArgumentParser)
@@ -98,7 +104,8 @@ struct XCProjExplorer: ParsableCommand {
             detectOrphanedFiles,
             dependencyGraph,
             NLargestFilesByLines != nil,
-            NLargestFilesByWords != nil
+            NLargestFilesByWords != nil,
+            emptyFiles
         ]
         
         // No flags passed at all — print help
@@ -147,6 +154,10 @@ struct XCProjExplorer: ParsableCommand {
             
             if let NLargestFilesByWords {
                 try dashboard.fetchTopNFilesByWords(NLargestFilesByWords)
+            }
+            
+            if emptyFiles {
+                dashboard.fetchEmptyFiles()
             }
         }
     }
