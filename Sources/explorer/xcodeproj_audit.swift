@@ -9,7 +9,7 @@ import PathKit
 import XcodeProj
 
 @main
-struct XCProjExplorer: ParsableCommand {
+struct XCProjAudit: ParsableCommand {
     static var configuration = CommandConfiguration(
         commandName: "xcproj-explorer",
         abstract: "Explore and analyse Xcode project files.",
@@ -90,7 +90,7 @@ struct XCProjExplorer: ParsableCommand {
                 || NLargestFilesByWords != nil
         else {
             // No flags passed at all — print help
-            print(XCProjExplorer.helpMessage())
+            print(XCProjAudit.helpMessage())
             return
         }
         
