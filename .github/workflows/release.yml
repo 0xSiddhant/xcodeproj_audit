@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: Tag · Version · Build · Release
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+
+      # ── 1. Checkout full history so we can read all tags ──────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 2. Compute next tag (+1 patch from latest) ─────────────────────────
+      - name: Compute next version
+        id: version
+        run: |
+          # Get latest tag, default to 0.0.0 if none exists
+          LATEST=$(git tag --sort=-v:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+          if [ -z "$LATEST" ]; then
+            LATEST="0.0.0"
+          fi
+
+          echo "Previous tag: $LATEST"
+
+          # Split into major.minor.patch and increment patch
+          MAJOR=$(echo $LATEST | cut -d. -f1)
+          MINOR=$(echo $LATEST | cut -d. -f2)
+          PATCH=$(echo $LATEST | cut -d. -f3)
+          NEXT_PATCH=$((PATCH + 1))
+          NEXT_VERSION="$MAJOR.$MINOR.$NEXT_PATCH"
+
+          echo "Next version: $NEXT_VERSION"
+          echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "previous=$LATEST"      >> $GITHUB_OUTPUT
+
+      # ── 3. Update version string inside source code ────────────────────────
+      - name: Bump version in source
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          FILE="Sources/explorer/xcodeproj_audit.swift"
+
+          # Replaces: version: "x.y.z"  →  version: "$VERSION"
+          # Works with any previous version string
+          sed -i '' \
+            "s/version: \"[0-9]*\.[0-9]*\.[0-9]*\"/version: \"$VERSION\"/" \
+            "$FILE"
+
+          echo "Updated $FILE to version $VERSION"
+          cat "$FILE" | grep "version:"
+
+      # ── 4. Commit the version bump back to main ────────────────────────────
+      - name: Commit version bump
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add Sources/explorer/xcodeproj_audit.swift
+          git diff --staged --quiet || git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
+          git push origin main
+
+      # ── 5. Create and push the new tag ─────────────────────────────────────
+      - name: Create tag
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          git tag "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+
+      # ── 6. Build release binary ────────────────────────────────────────────
+      - name: Build
+        run: |
+          swift build -c release --arch arm64
+          ls -lh .build/release/xcodeproj_audit
+
+      # ── 7. Zip the binary ──────────────────────────────────────────────────
+      - name: Zip binary
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          zip -j "xcodeproj_audit-$VERSION-macos.zip" .build/release/xcodeproj_audit
+          echo "artifact=xcodeproj_audit-$VERSION-macos.zip" >> $GITHUB_ENV
+
+      # ── 8. Create GitHub Release and upload artifact ───────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body: |
+            ## xcodeproj_audit v${{ steps.version.outputs.version }}
+
+            ### Install
+            Download the binary below, unzip, and move to `/usr/local/bin`:
+            ```bash
+            unzip xcodeproj_audit-${{ steps.version.outputs.version }}-macos.zip
+            chmod +x xcodeproj_audit
+            mv xcodeproj_audit /usr/local/bin/xcodeproj_audit
+            ```
+
+            ### Run
+            ```bash
+            xcodeproj_audit --path ./MyApp.xcodeproj --generate-dashboard-report
+            ```
+          files: ${{ env.artifact }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -11,7 +11,7 @@ import XcodeProj
 @main
 struct XCProjAudit: ParsableCommand {
     static var configuration = CommandConfiguration(
-        commandName: "xcproj-explorer",
+        commandName: "xcodeproj_audit",
         abstract: "Explore and analyse Xcode project files.",
         discussion: """
         Pass --generate-dashboard-report for a full report, or
@@ -22,7 +22,7 @@ struct XCProjAudit: ParsableCommand {
           swift run xcproj-explorer --path ./MyApp.xcodeproj --generate-meta --empty-files
           swift run xcproj-explorer --path ./MyApp.xcodeproj --n-largest-files-by-lines 10
         """,
-        version: "1.0.0"
+        version: "0.0.0"
     )
     
     // MARK: - Path (required for most operations)
