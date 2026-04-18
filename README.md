@@ -10,10 +10,10 @@ A Swift command-line tool for auditing and exploring `.xcodeproj` and `.xcworksp
 |---|---|
 | `--generate-meta` | Project metadata — name, targets, SPM deps, build settings |
 | `--generate-code-stats` | Lines, words, and file count broken down by extension |
-| `--detect-missing-files` | Files referenced in the project but absent on disk |
+| `--detect-missing-files` | Files referenced in the project but absent on disk — shows path, group, affected targets, and reason (missing/broken symlink) |
 | `--detect-orphaned-files` | Files in the navigator not assigned to any build phase |
-| `--empty-files` | Source files that are empty or whitespace-only |
-| `--dependency-graph` | Full target dependency graph |
+| `--empty-files` | Source files that are empty or whitespace-only — lists file names |
+| `--dependency-graph` | Full target dependency graph *(coming soon)* |
 | `--generate-dashboard-report` | Runs all of the above in one shot |
 | `--n-largest-files-by-lines <n>` | Top N files by line count |
 | `--n-largest-files-by-words <n>` | Top N files by word count |
