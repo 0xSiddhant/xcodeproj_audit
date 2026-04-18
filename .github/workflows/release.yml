@@ -76,17 +76,22 @@ jobs:
           git tag "$VERSION" -m "Release $VERSION"
           git push origin "$VERSION"
 
-      # ── 6. Build release binary ────────────────────────────────────────────
+      # ── 6. Build universal release binary (arm64 + x86_64) ───────────────────
       - name: Build
         run: |
           swift build -c release --arch arm64
-          ls -lh .build/release/xcodeproj_audit
+          swift build -c release --arch x86_64
+          lipo -create -output xcodeproj_audit \
+            .build/arm64-apple-macosx/release/xcodeproj_audit \
+            .build/x86_64-apple-macosx/release/xcodeproj_audit
+          lipo -info xcodeproj_audit
+          ls -lh xcodeproj_audit
 
       # ── 7. Zip the binary ──────────────────────────────────────────────────
       - name: Zip binary
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          zip -j "xcodeproj_audit-$VERSION-macos.zip" .build/release/xcodeproj_audit
+          zip "xcodeproj_audit-$VERSION-macos.zip" xcodeproj_audit
           echo "artifact=xcodeproj_audit-$VERSION-macos.zip" >> $GITHUB_ENV
 
       # ── 8. Create GitHub Release and upload artifact ───────────────────────
@@ -99,11 +104,12 @@ jobs:
             ## xcodeproj_audit v${{ steps.version.outputs.version }}
 
             ### Install
-            Download the binary below, unzip, and move to `/usr/local/bin`:
             ```bash
-            unzip xcodeproj_audit-${{ steps.version.outputs.version }}-macos.zip
-            chmod +x xcodeproj_audit
-            mv xcodeproj_audit /usr/local/bin/xcodeproj_audit
+            # Install to /usr/local/bin (requires sudo)
+            curl -fsSL https://raw.githubusercontent.com/0xSiddhant/xcodeproj_audit/main/install.sh | sudo bash
+
+            # Install to ~/.local/bin (no sudo)
+            curl -fsSL https://raw.githubusercontent.com/0xSiddhant/xcodeproj_audit/main/install.sh | bash -s -- --user
             ```
 
             ### Run
