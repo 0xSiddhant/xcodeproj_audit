@@ -62,12 +62,21 @@ struct CodeStats {
     static func generateCodeStats(
         for project: PBXProj,
         projectRoot: Path,
-        config: DashboardConfig
+        config: DashboardConfig,
+        devPodFiles: (() -> [Path])? = nil
     ) -> CodeStatsResult {
-        // 1. Collect all file references
-        // 2. Resolve to absolute paths and deduplicate
-        let resolvedPaths = generatePaths(for: project.fileReferences, in: projectRoot, config: config)
-        
+        var resolvedPaths = collectPaths(from: project, projectRoot: projectRoot, config: config)
+
+        // Merge Development Pods source files (bypasses XcodeProj resolution and Pods/ exclusion)
+        if let extra = devPodFiles?() {
+            var seenPaths = Set<String>(resolvedPaths.map { $0.path.string })
+            resolvedPaths += extra.compactMap { path in
+                guard let ext = path.extension,
+                      config.includedExtensions.contains(ext),
+                      seenPaths.insert(path.string).inserted else { return nil }
+                return (path: path, ext: ext)
+            }
+        }
         // 3. Count lines + words across all resolved paths
         var totalLines   = 0
         var totalWords   = 0
@@ -117,15 +126,25 @@ struct CodeStats {
     static func generateTopNLargestFiles(
         for project: PBXProj,
         in projectRoot: Path,
-        config: DashboardConfig
+        config: DashboardConfig,
+        devPodFiles: (() -> [Path])? = nil
     ) throws -> [TopNFileResult] {
         guard let topNFilter = config.topNCountFor else {
             throw ProjectError.topNFileFailedProcessing
         }
         var result = [TopNFileResult]()
-        
-        let resolvedPaths = generatePaths(for: project.fileReferences, in: projectRoot, config: config)
-        
+
+        var resolvedPaths = collectPaths(from: project, projectRoot: projectRoot, config: config)
+        if let extra = devPodFiles?() {
+            var seenPaths = Set<String>(resolvedPaths.map { $0.path.string })
+            resolvedPaths += extra.compactMap { path in
+                guard let ext = path.extension,
+                      config.includedExtensions.contains(ext),
+                      seenPaths.insert(path.string).inserted else { return nil }
+                return (path: path, ext: ext)
+            }
+        }
+
         for (path, _) in resolvedPaths {
             switch analyze(file: path, config: config) {
             case .success(let fileStat):
@@ -169,11 +188,7 @@ struct CodeStats {
         // Build fileRef UUID → [target names] map upfront
         let refToTargets = buildRefToTargetsMap(pbxproj: pbxproj)
 
-        let scannable: Set<String> = [
-            "swift", "m", "mm", "cpp", "c", "h", "hpp",
-            "metal", "storyboard", "xib", "xcdatamodeld",
-            "xcassets", "js", "ts"
-        ]
+        let scannable = DashboardConfig.projectFileExtensions
 
         var missing:  [MissingFile] = []
         var scanned = 0
@@ -257,6 +272,45 @@ struct CodeStats {
     ///
     /// Returns:
     /// An array of tuples `(path: Path, ext: String)` containing the resolved absolute path and its file extension for each included file.
+    /// Combines file references and filesystem-synchronized root groups (Xcode 16+) into one deduplicated list.
+    static private func collectPaths(
+        from project: PBXProj,
+        projectRoot: Path,
+        config: DashboardConfig
+    ) -> [(path: Path, ext: String)] {
+        var seenPaths = Set<String>()
+        var result: [(path: Path, ext: String)] = []
+
+        // Traditional PBXFileReference entries
+        for item in generatePaths(for: project.fileReferences, in: projectRoot, config: config) {
+            if seenPaths.insert(item.path.string).inserted {
+                result.append(item)
+            }
+        }
+
+        // Xcode 16+ PBXFileSystemSynchronizedRootGroup — whole directories, no individual refs
+        for target in project.nativeTargets {
+            for group in target.fileSystemSynchronizedGroups ?? [] {
+                guard let groupPath = group.path else { continue }
+                let dir = (projectRoot + groupPath).normalize()
+                guard dir.isDirectory else { continue }
+
+                let files = (try? dir.recursiveChildren()) ?? []
+                for file in files {
+                    guard let ext = file.extension,
+                          config.includedExtensions.contains(ext),
+                          !file.isDirectory,
+                          !config.excludedPathFragments.contains(where: { file.string.contains($0) }),
+                          seenPaths.insert(file.string).inserted
+                    else { continue }
+                    result.append((path: file, ext: ext))
+                }
+            }
+        }
+
+        return result
+    }
+
     static private func generatePaths(
         for allRefs: [PBXFileReference],
         in projectRoot: Path,
