@@ -38,6 +38,16 @@ curl -fsSL https://raw.githubusercontent.com/0xSiddhant/xcodeproj_audit/main/ins
 
 The script fetches the latest release from GitHub, downloads the universal macOS binary, and installs it.
 
+### Update
+
+- Re-run the install script to update — it compares versions and skips the download if you're already on the latest
+
+- Or use the built-in update subcommand if the tool is already installed:
+
+    ```bash
+    sudo xcodeproj_audit update
+    ```
+
 ---
 
 ## Requirements
