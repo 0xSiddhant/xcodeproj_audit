@@ -37,8 +37,10 @@ jobs:
           MINOR=$(echo $LATEST | cut -d. -f2)
           PATCH=$(echo $LATEST | cut -d. -f3)
 
-          # Read the latest commit message (excluding [skip ci] bumps)
-          COMMIT_MSG=$(git log --format=%s --no-merges | grep -v '^\[skip ci\]' | grep -v '^chore: bump version' | head -n1)
+          # Read the full commit message (%B covers both subject and body).
+          # This handles both squash merges (PR title is subject) and regular
+          # merge commits (PR title appears in the body after "Merge pull request").
+          COMMIT_MSG=$(git log -1 --format=%B | grep -v '^Merge pull request' | grep -v '^\s*$' | grep -v '^\[skip ci\]' | grep -v '^chore: bump version' | head -n1)
           echo "Commit message: $COMMIT_MSG"
 
           # Determine bump type:

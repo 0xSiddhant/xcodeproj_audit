@@ -52,6 +52,12 @@ struct XCProjAudit: ParsableCommand {
     // MARK: - Flags (standalone or combined with --path)
     @Flag(
         name: .long,
+        help: "Exclude Development Pods source files from analysis (included by default)"
+    )
+    var noPods: Bool = false
+
+    @Flag(
+        name: .long,
         help: "Generate full dashboard report — runs all operations in one shot"
     )
     var generateDashboardReport: Bool = false
@@ -106,8 +112,14 @@ struct XCProjAudit: ParsableCommand {
         let projectRoot = try source.fetchRootPath()
         let projects = try source.fetchProjects()
         
+        var config = DashboardConfig()
+        config.skipDevelopmentPods = noPods
+
+        let isWorkspace: Bool
+        if case .workspace = source { isWorkspace = true } else { isWorkspace = false }
+
         try projects.forEach {
-            let dashboard = DashboardManager(xcodeProj: $0.project, root: projectRoot)
+            let dashboard = DashboardManager(xcodeProj: $0.project, root: projectRoot, config: config, isWorkspace: isWorkspace)
             
             if generateDashboardReport {
                 try dashboard.generateDashboard()

@@ -11,37 +11,32 @@ import Foundation
 final class DashboardManager {
     private let xcodeProj: XcodeProj
     private let root: Path
-    
-    init(xcodeProj: XcodeProj, root: Path) {
+    private let config: DashboardConfig
+
+    /// - isWorkspace: Pass `true` only when the source is a `.xcworkspace`.
+    ///   Dev pod scanning via podspecs is skipped for standalone `.xcodeproj` inputs
+    ///   since CocoaPods always generates a workspace.
+    init(xcodeProj: XcodeProj, root: Path, config: DashboardConfig = DashboardConfig(), isWorkspace: Bool = false) {
         self.xcodeProj = xcodeProj
         self.root = root
+        self.config = config
+        self.isWorkspace = isWorkspace
     }
-    
-    
-    /// Generates and prints a consolidated dashboard for the currently loaded Xcode project.
-    /// 
-    /// This method performs two major tasks:
-    /// - Extracts and prints high-level project metadata (name, configurations, targets, SPM dependencies, etc.).
-    /// - Computes and prints code statistics across the project's tracked source files (e.g., total lines, words, file counts),
-    ///   using the project root to resolve file references.
-    /// 
-    /// Behavior:
-    /// - Uses `fetchMetadata(from:)` to collect metadata from the project's `PBXProj`.
-    /// - Uses `generateDashboard(for:projectRoot:)` to analyze source files and aggregate statistics.
-    /// - Outputs both the metadata and the analysis result to standard output.
-    /// 
-    /// Throws:
-    /// - Rethrows any errors that may occur from upstream operations if they are added in the future,
-    ///   though the current implementation does not explicitly throw within this method.
-    /// 
-    /// Notes:
-    /// - The method is side-effectful (it prints to the console).
-    /// - The analysis respects the default `DashboardConfig` used by `generateDashboard(for:projectRoot:)`.
-    /// - Files are resolved via XcodeProj’s path resolution and filtered/deduplicated before analysis.
-    /// 
-    /// See also:
-    /// - `fetchMetadata(from:)`
-    /// - `generateDashboard(for:projectRoot:config:)`
+
+    private let isWorkspace: Bool
+
+    // Resolved once on first use, then cached. Returns nil when dev pods are
+    // disabled, source is not a workspace, or no podspecs are found.
+    private lazy var devPodFilesProvider: (() -> [Path])? = makeDevPodFilesProvider()
+
+    private func makeDevPodFilesProvider() -> (() -> [Path])? {
+        guard isWorkspace, !config.skipDevelopmentPods else { return nil }
+        let specs = PodspecReader.findDevelopmentPodspecs(projectRoot: root)
+        guard !specs.isEmpty else { return nil }
+        let capturedConfig = config
+        return { specs.flatMap { PodspecReader.resolveSourceFiles(podspecPath: $0, config: capturedConfig) } }
+    }
+
     func generateDashboard() throws {
         generateMeta()
         generateCodeStats()
@@ -55,30 +50,53 @@ final class DashboardManager {
     }
     
     func generateCodeStats() {
-        let result = CodeStats.generateCodeStats(for: xcodeProj.pbxproj, projectRoot: root, config: DashboardConfig())
+        let result = CodeStats.generateCodeStats(
+            for: xcodeProj.pbxproj,
+            projectRoot: root,
+            config: config,
+            devPodFiles: devPodFilesProvider
+        )
         print(result)
     }
-    
+
     func fetchOrphansFileReport() {
         let orphanFiles = OrphanFileDetector.detectOrphanedFiles(in: xcodeProj.pbxproj)
         print(orphanFiles)
     }
-    
+
     func fetchTopNFilesByLines(_ lines: Int) throws {
-        let topNFiles = try CodeStats.generateTopNLargestFiles(for: xcodeProj.pbxproj, in: root, config: DashboardConfig(topNCountFor: .line(lines)))
+        var topNConfig = config
+        topNConfig.topNCountFor = .line(lines)
+        let topNFiles = try CodeStats.generateTopNLargestFiles(
+            for: xcodeProj.pbxproj,
+            in: root,
+            config: topNConfig,
+            devPodFiles: devPodFilesProvider
+        )
         topNFiles.forEach { print($0) }
     }
-    
+
     func fetchTopNFilesByWords(_ words: Int) throws {
-        let topNFiles = try CodeStats.generateTopNLargestFiles(for: xcodeProj.pbxproj, in: root, config: DashboardConfig(topNCountFor: .word(words)))
+        var topNConfig = config
+        topNConfig.topNCountFor = .word(words)
+        let topNFiles = try CodeStats.generateTopNLargestFiles(
+            for: xcodeProj.pbxproj,
+            in: root,
+            config: topNConfig,
+            devPodFiles: devPodFilesProvider
+        )
         topNFiles.forEach { print($0) }
     }
-    
+
     func fetchEmptyFiles() {
-        let emptyFiles = EmptyFilesCheck.detectEmptyFiles(in: xcodeProj.pbxproj, projectRoot: root)
+        let emptyFiles = EmptyFilesCheck.detectEmptyFiles(
+            in: xcodeProj.pbxproj,
+            projectRoot: root,
+            devPodFiles: devPodFilesProvider
+        )
         print(emptyFiles)
     }
-    
+
     func generateMissingFileReport() {
         let missingFilesResult = CodeStats.detectMissingFiles(in: xcodeProj.pbxproj, projectRoot: root)
         print(missingFilesResult)

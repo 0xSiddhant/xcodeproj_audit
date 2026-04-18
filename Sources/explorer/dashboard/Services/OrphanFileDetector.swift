@@ -92,21 +92,8 @@ struct OrphanFileDetector {
     ) -> Bool {
         let ext = Path(path).extension ?? ""
         
-        // Types that should always be in a build phase
-        let codeExtensions: Set<String> = [
-            "swift", "m", "mm", "cpp", "c", "h", "hpp", "metal",
-            "storyboard", "xib", "xcdatamodeld", "xcassets",
-            "js", "ts", "py"
-        ]
-        
-        // Skip: folders, project files, config files, docs
-        let skipExtensions: Set<String> = [
-            "xcodeproj", "xcworkspace", "json", "md",
-            "txt", "pdf", "resolved", "xcconfig"
-        ]
-        
-        if skipExtensions.contains(ext) { return false }
+        if DashboardConfig.orphanSkipExtensions.contains(ext) { return false }
         if ext.isEmpty { return false }             // likely a folder ref
-        return codeExtensions.contains(ext)
+        return DashboardConfig.projectFileExtensions.contains(ext)
     }
 }
