@@ -30,12 +30,28 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
+# Check if already installed and compare versions
+CURRENT_VERSION=""
+if command -v "$BINARY_NAME" &>/dev/null; then
+  CURRENT_VERSION=$("$BINARY_NAME" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1 || true)
+fi
+
+if [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" = "$VERSION" ]; then
+  echo -e "${GREEN}$BINARY_NAME is already up to date (${VERSION})${RESET}"
+  exit 0
+fi
+
+if [ -n "$CURRENT_VERSION" ]; then
+  echo -e "${YELLOW}Updating $BINARY_NAME $CURRENT_VERSION → $VERSION...${RESET}"
+else
+  echo -e "${YELLOW}Installing $BINARY_NAME $VERSION...${RESET}"
+fi
+
 ARCHIVE="${BINARY_NAME}-${VERSION}-macos.zip"
 URL="https://github.com/$REPO/releases/download/$VERSION/$ARCHIVE"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-echo -e "${YELLOW}Downloading $BINARY_NAME $VERSION...${RESET}"
 curl -fsSL "$URL" -o "$TMP_DIR/$ARCHIVE"
 unzip -q "$TMP_DIR/$ARCHIVE" -d "$TMP_DIR"
 
@@ -47,7 +63,11 @@ else
   install -m 755 "$TMP_DIR/$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
 fi
 
-echo -e "${GREEN}$BINARY_NAME $VERSION installed → $INSTALL_DIR/$BINARY_NAME${RESET}"
+if [ -n "$CURRENT_VERSION" ]; then
+  echo -e "${GREEN}$BINARY_NAME updated $CURRENT_VERSION → $VERSION${RESET}"
+else
+  echo -e "${GREEN}$BINARY_NAME $VERSION installed → $INSTALL_DIR/$BINARY_NAME${RESET}"
+fi
 
 if [ "$USE_SUDO" = false ] && [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
   echo ""
