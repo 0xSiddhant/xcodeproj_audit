@@ -143,7 +143,7 @@ struct XCProjAudit: ParsableCommand {
             dashboard.generateCodeStats()
             
         case .detectMissingFiles:
-            break
+            dashboard.generateMissingFileReport()
             
         case .detectOrphanedFiles:
             dashboard.fetchOrphansFileReport()

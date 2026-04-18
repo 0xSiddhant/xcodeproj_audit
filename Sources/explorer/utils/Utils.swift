@@ -73,4 +73,12 @@ struct Utils {
         
         return segments.reversed().joined(separator: "/")
     }
+    
+    /// Checks if a path is a symlink using lstat
+    /// FileManager.fileExists follows symlinks so we need this separately
+    static func isSymlink(at path: Path) -> Bool {
+        var stat = Darwin.stat()
+        // lstat does NOT follow symlinks — returns info about the link itself
+        return lstat(path.string, &stat) == 0 && (stat.st_mode & S_IFMT) == S_IFLNK
+    }
 }

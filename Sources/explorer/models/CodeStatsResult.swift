@@ -14,6 +14,8 @@ struct CodeStatsResult: CustomStringConvertible {
     let linesByExtension: [String: Int]   // extension → line count
     let wordsByExtension: [String: Int]   // extension → word count
     let filesByExtension: [String: Int]   // extension → file count
+    let emptyFileCount: Int
+    let emptyFileList: Set<String>
 
     var description: String {
         let extStats = linesByExtension.keys.sorted().map { ext in
@@ -23,12 +25,23 @@ struct CodeStatsResult: CustomStringConvertible {
             return "  .\(ext): \(files) files, \(lines) lines, \(words) words"
         }.joined(separator: "\n")
 
+        var emptyFilesStr = ""
+        if !emptyFileList.isEmpty {
+            emptyFilesStr = """
+                ------------
+        Empty Files  :
+            \(emptyFileList.sorted().joined(separator: "\n"))
+        """
+        }
+        
         return """
         Total files  : \(totalFiles) (\(skippedFiles) skipped)
         Total lines  : \(totalLines)
         Total words  : \(totalWords)
+        Empty Files  : \(emptyFileCount)
         By extension :
         \(extStats)
+        \(emptyFilesStr)
         """
     }
 }
