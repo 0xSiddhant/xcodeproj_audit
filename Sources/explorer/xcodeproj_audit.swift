@@ -22,7 +22,7 @@ struct XCProjAudit: ParsableCommand {
           swift run xcproj-explorer --path ./MyApp.xcodeproj --generate-meta --empty-files
           swift run xcproj-explorer --path ./MyApp.xcodeproj --n-largest-files-by-lines 10
         """,
-        version: "0.0.1",
+        version: "0.0.2",
         subcommands: [Update.self]
     )
     
