@@ -22,7 +22,8 @@ struct XCProjAudit: ParsableCommand {
           swift run xcproj-explorer --path ./MyApp.xcodeproj --generate-meta --empty-files
           swift run xcproj-explorer --path ./MyApp.xcodeproj --n-largest-files-by-lines 10
         """,
-        version: "0.0.1"
+        version: "0.0.1",
+        subcommands: [Update.self]
     )
     
     // MARK: - Path (required for most operations)
@@ -143,7 +144,7 @@ struct XCProjAudit: ParsableCommand {
             dashboard.generateCodeStats()
             
         case .detectMissingFiles:
-            break
+            dashboard.generateMissingFileReport()
             
         case .detectOrphanedFiles:
             dashboard.fetchOrphansFileReport()

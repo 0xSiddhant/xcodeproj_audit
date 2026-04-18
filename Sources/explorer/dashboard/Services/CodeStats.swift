@@ -12,6 +12,7 @@ struct CodeStats {
     private struct FileStats {
         let lines: Int
         let words: Int
+        let fileName: String
     }
     
     private init() { }
@@ -72,10 +73,12 @@ struct CodeStats {
         var totalWords   = 0
         var totalFiles   = 0
         var skippedFiles = 0
+        var emptyFiles   = 0
         
         var linesByExtension: [String: Int] = [:]
         var wordsByExtension: [String: Int] = [:]
         var filesByExtension: [String: Int] = [:]
+        var emptyFileList: Set<String>         = []
         
         for (path, ext) in resolvedPaths {
             switch analyze(file: path, config: config) {
@@ -83,6 +86,11 @@ struct CodeStats {
                 totalLines += stats.lines
                 totalWords += stats.words
                 totalFiles += 1
+                
+                if stats.words == 0 {
+                    emptyFiles += 1
+                    emptyFileList.insert(stats.fileName)
+                }
                 
                 linesByExtension[ext, default: 0] += stats.lines
                 wordsByExtension[ext, default: 0] += stats.words
@@ -100,7 +108,9 @@ struct CodeStats {
             skippedFiles:     skippedFiles,
             linesByExtension: linesByExtension,
             wordsByExtension: wordsByExtension,
-            filesByExtension: filesByExtension
+            filesByExtension: filesByExtension,
+            emptyFileCount:   emptyFiles,
+            emptyFileList:    emptyFileList
         )
     }
     
@@ -149,6 +159,80 @@ struct CodeStats {
         }
         
         return result
+    }
+    
+    static func detectMissingFiles(
+        in pbxproj: PBXProj,
+        projectRoot: Path
+    ) -> MissingFilesResult {
+
+        // Build fileRef UUID → [target names] map upfront
+        let refToTargets = buildRefToTargetsMap(pbxproj: pbxproj)
+
+        let scannable: Set<String> = [
+            "swift", "m", "mm", "cpp", "c", "h", "hpp",
+            "metal", "storyboard", "xib", "xcdatamodeld",
+            "xcassets", "js", "ts"
+        ]
+
+        var missing:  [MissingFile] = []
+        var scanned = 0
+
+        for ref in pbxproj.fileReferences {
+
+            // Skip non-source files (frameworks, SDKs etc)
+            guard let ext = ref.path.flatMap({ Path($0).extension }),
+                  scannable.contains(ext)
+            else { continue }
+
+            // Resolve full path — skip if unresolvable (SDK-relative refs)
+            guard let fullPath = try? ref.fullPath(sourceRoot: projectRoot)
+            else { continue }
+
+            scanned += 1
+
+            _ = URL(fileURLWithPath: fullPath.string)
+
+            // Edge case 1 — broken symlink
+            // lstat succeeds (symlink exists) but stat fails (target missing)
+            if Utils.isSymlink(at: fullPath) && !FileManager.default.fileExists(atPath: fullPath.string) {
+                missing.append(MissingFile(
+                    fileName:     fullPath.lastComponent,
+                    expectedPath: fullPath.string,
+                    groupPath:    Utils.resolveGroupPath(for: ref, in: pbxproj),
+                    targetNames:  refToTargets[ref.uuid] ?? [],
+                    reason:       .brokenSymlink
+                ))
+                continue
+            }
+
+            // Edge case 2 — folder reference (xcassets, xcdatamodeld)
+            // fileExists returns true for directories — check it is actually there
+            var isDirectory: ObjCBool = false
+            let exists = FileManager.default.fileExists(
+                atPath: fullPath.string,
+                isDirectory: &isDirectory
+            )
+
+            // It's a folder ref that exists — not missing
+            if exists && isDirectory.boolValue { continue }
+
+            // Core check — file simply not on disk
+            if !exists {
+                missing.append(MissingFile(
+                    fileName:     fullPath.lastComponent,
+                    expectedPath: fullPath.string,
+                    groupPath:    Utils.resolveGroupPath(for: ref, in: pbxproj),
+                    targetNames:  refToTargets[ref.uuid] ?? [],
+                    reason:       .notOnDisk
+                ))
+            }
+        }
+
+        return MissingFilesResult(
+            missingFiles: missing,
+            totalScanned: scanned
+        )
     }
     
     // MARK: - Helper
@@ -201,6 +285,21 @@ struct CodeStats {
         return resolvedPaths
     }
     
+    static private func buildRefToTargetsMap(pbxproj: PBXProj) -> [String: [String]] {
+        var map = [String: [String]]()
+
+        for target in pbxproj.nativeTargets {
+            for phase in target.buildPhases {
+                for buildFile in phase.files ?? [] {
+                    guard let uuid = buildFile.file?.uuid else { continue }
+                    map[uuid, default: []].append(target.name)
+                }
+            }
+        }
+
+        // Deduplicate — same file can appear in multiple phases of same target
+        return map.mapValues { Array(Set($0)).sorted() }
+    }
     
     // MARK: - Path resolver
     static private func resolve(
@@ -228,6 +327,7 @@ struct CodeStats {
             return .failure(.unreadable)
         }
         
+        // Null bytes don't appear in text files; their presence reliably identifies binary content (executables, archives, compiled objects, etc.)
         if data.contains(0x00) { return .failure(.isBinary) }
         
         let content: String
@@ -238,6 +338,8 @@ struct CodeStats {
         } else {
             return .failure(.unreadable)
         }
+        
+        let fileName = path.string.split(separator: "/").last ?? "Unknown_\(String.random(length: 8))"
         
         // — Lines
         var lines = content.components(separatedBy: .newlines)
@@ -262,7 +364,7 @@ struct CodeStats {
             .filter { !$0.isEmpty }
             .count
         
-        return .success(FileStats(lines: lines.count, words: words))
+        return .success(FileStats(lines: lines.count, words: words, fileName: String(fileName)))
     }
     
     /// Checks whether a given file path points to a reachable, non-directory file on disk.

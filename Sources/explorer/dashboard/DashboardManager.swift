@@ -78,4 +78,9 @@ final class DashboardManager {
         let emptyFiles = EmptyFilesCheck.detectEmptyFiles(in: xcodeProj.pbxproj, projectRoot: root)
         print(emptyFiles)
     }
+    
+    func generateMissingFileReport() {
+        let missingFilesResult = CodeStats.detectMissingFiles(in: xcodeProj.pbxproj, projectRoot: root)
+        print(missingFilesResult)
+    }
 }
