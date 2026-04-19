@@ -33,10 +33,12 @@ Sources/explorer/
 │   ├── MissingFilesResult.swift
 │   ├── OrphanedFilesResult.swift
 │   ├── EmptyFilesResult.swift
+│   ├── SummaryBadge.swift         # Final roll-up printed at end of --generate-dashboard-report
 │   └── LoadedProject.swift
 └── utils/
     ├── ProjectSource.swift        # Detects .xcworkspace vs .xcodeproj, loads projects
     ├── PodspecReader.swift        # Finds dev podspecs, resolves source_files globs
+    ├── Terminal.swift             # ANSI colour helpers — all styled output routes through here
     ├── Updater.swift
     ├── ProjectError.swift
     └── Utils.swift
@@ -57,6 +59,7 @@ Tests/
 | `--n-largest-files-by-lines <n>` | Top N files by line count |
 | `--n-largest-files-by-words <n>` | Top N files by word count |
 | `--no-pods` | Exclude Development Pods source files from analysis |
+| `--no-color` | Disable ANSI colour output (also honoured via `NO_COLOR` env var / piped stdout) |
 | `update` (subcommand) | Self-update to latest GitHub release |
 
 ## Deeper Context

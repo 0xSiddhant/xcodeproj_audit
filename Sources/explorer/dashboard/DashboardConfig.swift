@@ -53,6 +53,10 @@ struct DashboardConfig {
 
     /// Whether to count comment-only lines
     var countComments: Bool = true
-    
+
     var topNCountFor: CountType?
+
+    /// When true, disables ANSI colour output regardless of terminal capability.
+    /// Wired from the `--no-color` CLI flag.
+    var noColor: Bool = false
 }
