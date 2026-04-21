@@ -5,39 +5,51 @@
 //  Created by Siddhant Kumar on 29/03/26.
 //
 
+import Foundation
 
 struct EmptyFilesResult: CustomStringConvertible {
     let emptyFiles: [EmptyFile]
     let totalScanned: Int
 
+    var duration: TimeInterval? = nil
+
     var description: String {
-        let separator = String(repeating: "─", count: 50)
+        let separator = Terminal.separator()
 
         guard !emptyFiles.isEmpty else {
+            let header = Terminal.header("EMPTY FILES")
             return """
             \(separator)
-            EMPTY FILES
+            \(withTiming(header))
             \(separator)
-            ✅ No empty files found.
-            Total scanned : \(totalScanned)
+            \(Terminal.success("✅ No empty files found."))
+            \(Terminal.label("Total scanned :")) \(totalScanned)
             \(separator)
             """
         }
 
         let fileLines = emptyFiles
-            .map { "  ⚠ \($0.path)\n     reason : \($0.reason.description)" }
+            .map { "  \(Terminal.warning("⚠")) \(Terminal.yellow($0.path))\n     \(Terminal.label("reason :")) \(Terminal.dim($0.reason.description))" }
             .joined(separator: "\n")
+
+        let countText = "\(emptyFiles.count) found"
+        let header = "\(Terminal.header("EMPTY FILES")) (\(Terminal.warning(countText)))"
 
         return """
         \(separator)
-        EMPTY FILES (\(emptyFiles.count) found)
+        \(withTiming(header))
         \(separator)
-        Total scanned : \(totalScanned)
-        Empty         : \(emptyFiles.count)
+        \(Terminal.label("Total scanned :")) \(totalScanned)
+        \(Terminal.label("Empty         :")) \(emptyFiles.count)
 
         \(fileLines)
         \(separator)
         """
+    }
+
+    private func withTiming(_ header: String) -> String {
+        guard let duration else { return header }
+        return Terminal.appendTiming(to: header, duration: duration)
     }
 }
 

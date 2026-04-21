@@ -22,7 +22,7 @@ struct XCProjAudit: ParsableCommand {
           swift run xcproj-explorer --path ./MyApp.xcodeproj --generate-meta --empty-files
           swift run xcproj-explorer --path ./MyApp.xcodeproj --n-largest-files-by-lines 10
         """,
-        version: "0.0.1",
+        version: "0.2.0",
         subcommands: [Update.self]
     )
     
@@ -55,6 +55,12 @@ struct XCProjAudit: ParsableCommand {
         help: "Exclude Development Pods source files from analysis (included by default)"
     )
     var noPods: Bool = false
+
+    @Flag(
+        name: .long,
+        help: "Disable ANSI colour output (also honoured via NO_COLOR env var / piped stdout)"
+    )
+    var noColor: Bool = false
 
     @Flag(
         name: .long,
@@ -114,6 +120,8 @@ struct XCProjAudit: ParsableCommand {
         
         var config = DashboardConfig()
         config.skipDevelopmentPods = noPods
+        config.noColor = noColor
+        Terminal.forceDisabled = noColor
 
         let isWorkspace: Bool
         if case .workspace = source { isWorkspace = true } else { isWorkspace = false }

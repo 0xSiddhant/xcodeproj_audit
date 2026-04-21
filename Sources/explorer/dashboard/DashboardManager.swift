@@ -38,30 +38,51 @@ final class DashboardManager {
     }
 
     func generateDashboard() throws {
-        generateMeta()
-        generateCodeStats()
-        fetchOrphansFileReport()
-        fetchEmptyFiles()
+        generateMeta(showTiming: true)
+        generateCodeStats(showTiming: true)
+        let missing = generateMissingFileReport(showTiming: true)
+        let orphans = fetchOrphansFileReport(showTiming: true)
+        let empty = fetchEmptyFiles(showTiming: true)
+
+        let badge = SummaryBadge(
+            orphanedCount: orphans.orphanedFiles.count,
+            emptyCount: empty.emptyFiles.count,
+            missingCount: missing.missingFiles.count,
+            hasHardMissing: missing.hasHardMissing
+        )
+        print(badge)
     }
-    
-    func generateMeta() {
-        let metadata = ProjectMeta.fetchMetadata(from: xcodeProj.pbxproj)
+
+    @discardableResult
+    func generateMeta(showTiming: Bool = false) -> ProjectMetadata {
+        let start = Date()
+        var metadata = ProjectMeta.fetchMetadata(from: xcodeProj.pbxproj)
+        if showTiming { metadata.duration = Date().timeIntervalSince(start) }
         print(metadata)
+        return metadata
     }
-    
-    func generateCodeStats() {
-        let result = CodeStats.generateCodeStats(
+
+    @discardableResult
+    func generateCodeStats(showTiming: Bool = false) -> CodeStatsResult {
+        let start = Date()
+        var result = CodeStats.generateCodeStats(
             for: xcodeProj.pbxproj,
             projectRoot: root,
             config: config,
             devPodFiles: devPodFilesProvider
         )
+        if showTiming { result.duration = Date().timeIntervalSince(start) }
         print(result)
+        return result
     }
 
-    func fetchOrphansFileReport() {
-        let orphanFiles = OrphanFileDetector.detectOrphanedFiles(in: xcodeProj.pbxproj)
+    @discardableResult
+    func fetchOrphansFileReport(showTiming: Bool = false) -> OrphanedFilesResult {
+        let start = Date()
+        var orphanFiles = OrphanFileDetector.detectOrphanedFiles(in: xcodeProj.pbxproj)
+        if showTiming { orphanFiles.duration = Date().timeIntervalSince(start) }
         print(orphanFiles)
+        return orphanFiles
     }
 
     func fetchTopNFilesByLines(_ lines: Int) throws {
@@ -88,17 +109,25 @@ final class DashboardManager {
         topNFiles.forEach { print($0) }
     }
 
-    func fetchEmptyFiles() {
-        let emptyFiles = EmptyFilesCheck.detectEmptyFiles(
+    @discardableResult
+    func fetchEmptyFiles(showTiming: Bool = false) -> EmptyFilesResult {
+        let start = Date()
+        var emptyFiles = EmptyFilesCheck.detectEmptyFiles(
             in: xcodeProj.pbxproj,
             projectRoot: root,
             devPodFiles: devPodFilesProvider
         )
+        if showTiming { emptyFiles.duration = Date().timeIntervalSince(start) }
         print(emptyFiles)
+        return emptyFiles
     }
 
-    func generateMissingFileReport() {
-        let missingFilesResult = CodeStats.detectMissingFiles(in: xcodeProj.pbxproj, projectRoot: root)
-        print(missingFilesResult)
+    @discardableResult
+    func generateMissingFileReport(showTiming: Bool = false) -> MissingFilesResult {
+        let start = Date()
+        var result = CodeStats.detectMissingFiles(in: xcodeProj.pbxproj, projectRoot: root)
+        if showTiming { result.duration = Date().timeIntervalSince(start) }
+        print(result)
+        return result
     }
 }
