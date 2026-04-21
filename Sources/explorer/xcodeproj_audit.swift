@@ -58,6 +58,12 @@ struct XCProjAudit: ParsableCommand {
 
     @Flag(
         name: .long,
+        help: "Disable ANSI colour output (also honoured via NO_COLOR env var / piped stdout)"
+    )
+    var noColor: Bool = false
+
+    @Flag(
+        name: .long,
         help: "Generate full dashboard report — runs all operations in one shot"
     )
     var generateDashboardReport: Bool = false
@@ -114,6 +120,8 @@ struct XCProjAudit: ParsableCommand {
         
         var config = DashboardConfig()
         config.skipDevelopmentPods = noPods
+        config.noColor = noColor
+        Terminal.forceDisabled = noColor
 
         let isWorkspace: Bool
         if case .workspace = source { isWorkspace = true } else { isWorkspace = false }

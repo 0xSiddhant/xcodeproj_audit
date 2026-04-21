@@ -4,31 +4,26 @@ struct Updater {
     private static let repo       = "0xSiddhant/xcodeproj_audit"
     private static let binaryName = "xcodeproj_audit"
 
-    private static let red    = "\u{1B}[0;31m"
-    private static let green  = "\u{1B}[0;32m"
-    private static let yellow = "\u{1B}[1;33m"
-    private static let reset  = "\u{1B}[0m"
-
     static func run(currentVersion: String) {
         do {
-            print("\(yellow)Checking for updates...\(reset)")
+            print(Terminal.warning("Checking for updates..."))
             let latest = try fetchLatestVersion()
 
             guard latest != currentVersion else {
-                print("\(green)\(binaryName) is already up to date (\(currentVersion))\(reset)")
+                print(Terminal.success("\(binaryName) is already up to date (\(currentVersion))"))
                 return
             }
 
-            print("\(yellow)Updating \(binaryName) \(currentVersion) → \(latest)...\(reset)")
+            print(Terminal.warning("Updating \(binaryName) \(currentVersion) → \(latest)..."))
             try downloadAndReplace(version: latest)
-            print("\(green)\(binaryName) updated \(currentVersion) → \(latest)\(reset)")
+            print(Terminal.success("\(binaryName) updated \(currentVersion) → \(latest)"))
 
         } catch UpdateError.permissionDenied(let path) {
-            print("\(red)error: permission denied writing to \(path)\(reset)")
+            print(Terminal.problem("error: permission denied writing to \(path)"))
             print("Try running with sudo: sudo xcodeproj_audit --update")
             Foundation.exit(1)
         } catch {
-            print("\(red)error: \(error.localizedDescription)\(reset)")
+            print(Terminal.problem("error: \(error.localizedDescription)"))
             Foundation.exit(1)
         }
     }
@@ -60,7 +55,7 @@ struct Updater {
         let zipPath       = tmpDir.appendingPathComponent(archive).path
         let newBinaryPath = tmpDir.appendingPathComponent(binaryName).path
 
-        print("\(yellow)Downloading \(binaryName) \(version)...\(reset)")
+        print(Terminal.warning("Downloading \(binaryName) \(version)..."))
         try shell(["curl", "-fsSL", url, "-o", zipPath])
         try shell(["unzip", "-q", zipPath, "-d", tmpDir.path])
 

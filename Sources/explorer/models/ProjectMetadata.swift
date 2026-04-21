@@ -36,60 +36,70 @@ struct ProjectMetadata: CustomStringConvertible {
     let spmDependencies: [String]           // XCRemoteSwiftPackageReference names
     let localSPMDependencies: [String]      // XCLocalSwiftPackageReference paths
 
+    var duration: TimeInterval? = nil
+
     // Derived
     var targetCount: Int        { targets.count }
     var testTargets: [TargetMetadata]  { targets.filter { $0.type == "test" } }
     var appTargets: [TargetMetadata]   { targets.filter { $0.type == "app" } }
 
     var description: String {
-        let separator = String(repeating: "─", count: 50)
+        let separator = Terminal.separator()
+        let dash = Terminal.dim("—")
 
         let targetLines = targets.map { t in
-            """
-              ◆ \(t.name) [\(t.type)]
-                Bundle ID   : \(t.bundleID        ?? "—")
-                Deploy      : \(t.deploymentTarget ?? "—")
-                Swift       : \(t.swiftVersion     ?? "—")
-                Configs     : \(t.configurations.joined(separator: ", "))
-                Depends on  : \(t.dependencies.isEmpty ? "—" : t.dependencies.joined(separator: ", "))
-                Frameworks  : \(t.linkedFrameworks.isEmpty ? "—" : t.linkedFrameworks.joined(separator: ", "))
-            """
+            let head = "  \(Terminal.cyan("◆")) \(Terminal.bold(t.name)) [\(t.type)]"
+            let rows = [
+                "    \(Terminal.label("Bundle ID   :")) \(t.bundleID        ?? dash)",
+                "    \(Terminal.label("Deploy      :")) \(t.deploymentTarget ?? dash)",
+                "    \(Terminal.label("Swift       :")) \(t.swiftVersion     ?? dash)",
+                "    \(Terminal.label("Configs     :")) \(t.configurations.joined(separator: ", "))",
+                "    \(Terminal.label("Depends on  :")) \(t.dependencies.isEmpty ? dash : t.dependencies.joined(separator: ", "))",
+                "    \(Terminal.label("Frameworks  :")) \(t.linkedFrameworks.isEmpty ? dash : t.linkedFrameworks.joined(separator: ", "))"
+            ]
+            return ([head] + rows).joined(separator: "\n")
         }.joined(separator: "\n\n")
 
         let spmLines = spmDependencies.isEmpty
-            ? "  —"
-            : spmDependencies.map { "  • \($0)" }.joined(separator: "\n")
+            ? "  \(dash)"
+            : spmDependencies.map { "  \(Terminal.cyan("•")) \($0)" }.joined(separator: "\n")
 
         let localSPMLines = localSPMDependencies.isEmpty
-            ? "  —"
-            : localSPMDependencies.map { "  • \($0)" }.joined(separator: "\n")
+            ? "  \(dash)"
+            : localSPMDependencies.map { "  \(Terminal.cyan("•")) \($0)" }.joined(separator: "\n")
 
+        let header = Terminal.header("PROJECT METADATA")
         return """
         \(separator)
-        PROJECT METADATA
+        \(withTiming(header))
         \(separator)
-        Name              : \(projectName)
-        Object version    : \(objectVersion)
-        Swift version     : \(swiftVersion     ?? "—")
-        Deployment target : \(deploymentTarget ?? "—")
-        Configurations    : \(configurations.joined(separator: ", "))
-        Targets           : \(targetCount) total (\(appTargets.count) app, \(testTargets.count) test)
+        \(Terminal.label("Name              :")) \(projectName)
+        \(Terminal.label("Object version    :")) \(objectVersion)
+        \(Terminal.label("Swift version     :")) \(swiftVersion     ?? dash)
+        \(Terminal.label("Deployment target :")) \(deploymentTarget ?? dash)
+        \(Terminal.label("Configurations    :")) \(configurations.joined(separator: ", "))
+        \(Terminal.label("Targets           :")) \(targetCount) total (\(appTargets.count) app, \(testTargets.count) test)
 
         \(separator)
-        TARGETS
+        \(Terminal.header("TARGETS"))
         \(separator)
         \(targetLines)
 
         \(separator)
-        SPM DEPENDENCIES (remote)
+        \(Terminal.header("SPM DEPENDENCIES (remote)"))
         \(separator)
         \(spmLines)
 
         \(separator)
-        SPM DEPENDENCIES (local)
+        \(Terminal.header("SPM DEPENDENCIES (local)"))
         \(separator)
         \(localSPMLines)
         \(separator)
         """
+    }
+
+    private func withTiming(_ header: String) -> String {
+        guard let duration else { return header }
+        return Terminal.appendTiming(to: header, duration: duration)
     }
 }

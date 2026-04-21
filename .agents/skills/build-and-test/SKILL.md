@@ -29,6 +29,10 @@ swift run xcodeproj_audit --path ./MyApp.xcodeproj --generate-code-stats
 swift run xcodeproj_audit --path ./MyApp.xcodeproj --empty-files
 swift run xcodeproj_audit --path ./MyApp.xcworkspace --generate-code-stats --no-pods
 swift run xcodeproj_audit --path ./MyApp.xcodeproj --n-largest-files-by-lines 10
+
+# Disable colour output (also honoured via NO_COLOR env var or piped stdout)
+swift run xcodeproj_audit --path ./MyApp.xcodeproj --generate-dashboard-report --no-color
+NO_COLOR=1 swift run xcodeproj_audit --path ./MyApp.xcodeproj --generate-dashboard-report
 ```
 
 ## Help / Version
