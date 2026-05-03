@@ -10,8 +10,7 @@ struct LocalSPMPackageReader {
     static func findLocalPackageRoots(pbxproj: PBXProj, projectRoot: Path) -> [Path] {
         let localRefs = pbxproj.rootObject?.localPackages ?? []
         return localRefs.compactMap { ref -> Path? in
-            guard let relativePath = ref.relativePath else { return nil }
-            let packageRoot = (projectRoot + relativePath).normalize()
+            let packageRoot = (projectRoot + ref.relativePath).normalize()
             guard packageRoot.isDirectory else { return nil }
             return packageRoot
         }
