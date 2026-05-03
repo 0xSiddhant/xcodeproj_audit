@@ -37,6 +37,18 @@ final class DashboardManager {
         return { specs.flatMap { PodspecReader.resolveSourceFiles(podspecPath: $0, config: capturedConfig) } }
     }
 
+    // Resolved once on first use, then cached. Returns nil when local SPM packages
+    // are disabled or the project has no local package references.
+    private lazy var localSPMFilesProvider: (() -> [Path])? = makeLocalSPMFilesProvider()
+
+    private func makeLocalSPMFilesProvider() -> (() -> [Path])? {
+        guard !config.skipLocalSPMPackages else { return nil }
+        let roots = LocalSPMPackageReader.findLocalPackageRoots(pbxproj: xcodeProj.pbxproj, projectRoot: root)
+        guard !roots.isEmpty else { return nil }
+        let capturedConfig = config
+        return { roots.flatMap { LocalSPMPackageReader.resolveSourceFiles(packageRoot: $0, config: capturedConfig) } }
+    }
+
     func generateDashboard() throws {
         generateMeta(showTiming: true)
         generateCodeStats(showTiming: true)
@@ -69,7 +81,8 @@ final class DashboardManager {
             for: xcodeProj.pbxproj,
             projectRoot: root,
             config: config,
-            devPodFiles: devPodFilesProvider
+            devPodFiles: devPodFilesProvider,
+            localSPMFiles: localSPMFilesProvider
         )
         if showTiming { result.duration = Date().timeIntervalSince(start) }
         print(result)
@@ -92,7 +105,8 @@ final class DashboardManager {
             for: xcodeProj.pbxproj,
             in: root,
             config: topNConfig,
-            devPodFiles: devPodFilesProvider
+            devPodFiles: devPodFilesProvider,
+            localSPMFiles: localSPMFilesProvider
         )
         topNFiles.forEach { print($0) }
     }
@@ -104,7 +118,8 @@ final class DashboardManager {
             for: xcodeProj.pbxproj,
             in: root,
             config: topNConfig,
-            devPodFiles: devPodFilesProvider
+            devPodFiles: devPodFilesProvider,
+            localSPMFiles: localSPMFilesProvider
         )
         topNFiles.forEach { print($0) }
     }
@@ -115,7 +130,8 @@ final class DashboardManager {
         var emptyFiles = EmptyFilesCheck.detectEmptyFiles(
             in: xcodeProj.pbxproj,
             projectRoot: root,
-            devPodFiles: devPodFilesProvider
+            devPodFiles: devPodFilesProvider,
+            localSPMFiles: localSPMFilesProvider
         )
         if showTiming { emptyFiles.duration = Date().timeIntervalSince(start) }
         print(emptyFiles)
