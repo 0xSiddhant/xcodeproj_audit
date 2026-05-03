@@ -63,12 +63,24 @@ struct CodeStats {
         for project: PBXProj,
         projectRoot: Path,
         config: DashboardConfig,
-        devPodFiles: (() -> [Path])? = nil
+        devPodFiles: (() -> [Path])? = nil,
+        localSPMFiles: (() -> [Path])? = nil
     ) -> CodeStatsResult {
         var resolvedPaths = collectPaths(from: project, projectRoot: projectRoot, config: config)
 
         // Merge Development Pods source files (bypasses XcodeProj resolution and Pods/ exclusion)
         if let extra = devPodFiles?() {
+            var seenPaths = Set<String>(resolvedPaths.map { $0.path.string })
+            resolvedPaths += extra.compactMap { path in
+                guard let ext = path.extension,
+                      config.includedExtensions.contains(ext),
+                      seenPaths.insert(path.string).inserted else { return nil }
+                return (path: path, ext: ext)
+            }
+        }
+
+        // Merge local SPM package source files
+        if let extra = localSPMFiles?() {
             var seenPaths = Set<String>(resolvedPaths.map { $0.path.string })
             resolvedPaths += extra.compactMap { path in
                 guard let ext = path.extension,
@@ -127,7 +139,8 @@ struct CodeStats {
         for project: PBXProj,
         in projectRoot: Path,
         config: DashboardConfig,
-        devPodFiles: (() -> [Path])? = nil
+        devPodFiles: (() -> [Path])? = nil,
+        localSPMFiles: (() -> [Path])? = nil
     ) throws -> [TopNFileResult] {
         guard let topNFilter = config.topNCountFor else {
             throw ProjectError.topNFileFailedProcessing
@@ -136,6 +149,15 @@ struct CodeStats {
 
         var resolvedPaths = collectPaths(from: project, projectRoot: projectRoot, config: config)
         if let extra = devPodFiles?() {
+            var seenPaths = Set<String>(resolvedPaths.map { $0.path.string })
+            resolvedPaths += extra.compactMap { path in
+                guard let ext = path.extension,
+                      config.includedExtensions.contains(ext),
+                      seenPaths.insert(path.string).inserted else { return nil }
+                return (path: path, ext: ext)
+            }
+        }
+        if let extra = localSPMFiles?() {
             var seenPaths = Set<String>(resolvedPaths.map { $0.path.string })
             resolvedPaths += extra.compactMap { path in
                 guard let ext = path.extension,
