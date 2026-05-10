@@ -14,7 +14,8 @@ struct EmptyFilesCheck {
     static func detectEmptyFiles(
         in pbxproj: PBXProj,
         projectRoot: Path,
-        devPodFiles: (() -> [Path])? = nil
+        devPodFiles: (() -> [Path])? = nil,
+        localSPMFiles: (() -> [Path])? = nil
     ) -> EmptyFilesResult {
 
         let allRefs = pbxproj.fileReferences.filter { ref in
@@ -59,6 +60,15 @@ struct EmptyFilesCheck {
                 guard DashboardConfig.sourceExtensions.contains(fullPath.extension ?? "") else { continue }
                 totalScanned += 1
                 checkEmptiness(at: fullPath, groupPath: "Development Pods", into: &emptyFiles)
+            }
+        }
+
+        // Also check local SPM package source files
+        if let extra = localSPMFiles?() {
+            for fullPath in extra {
+                guard DashboardConfig.sourceExtensions.contains(fullPath.extension ?? "") else { continue }
+                totalScanned += 1
+                checkEmptiness(at: fullPath, groupPath: "Local SPM Packages", into: &emptyFiles)
             }
         }
 

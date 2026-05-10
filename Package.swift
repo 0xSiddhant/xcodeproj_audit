@@ -22,6 +22,9 @@ let package = Package(
         ),
         .testTarget(
             name: "xcodeproj_audit_test",
+            dependencies: [
+                .target(name: "xcodeproj_audit")
+            ],
             path: "Tests"
         )
     ]

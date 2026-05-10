@@ -58,6 +58,12 @@ struct XCProjAudit: ParsableCommand {
 
     @Flag(
         name: .long,
+        help: "Exclude local SPM package source files from analysis (included by default)"
+    )
+    var noSpm: Bool = false
+
+    @Flag(
+        name: .long,
         help: "Disable ANSI colour output (also honoured via NO_COLOR env var / piped stdout)"
     )
     var noColor: Bool = false
@@ -120,6 +126,7 @@ struct XCProjAudit: ParsableCommand {
         
         var config = DashboardConfig()
         config.skipDevelopmentPods = noPods
+        config.skipLocalSPMPackages = noSpm
         config.noColor = noColor
         Terminal.forceDisabled = noColor
 

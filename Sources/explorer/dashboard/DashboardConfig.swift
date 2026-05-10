@@ -48,6 +48,9 @@ struct DashboardConfig {
     /// Default is false — dev pods are included in analysis by default.
     var skipDevelopmentPods: Bool = false
 
+    /// When true, skips source files from local SPM packages. Default false.
+    var skipLocalSPMPackages: Bool = false
+
     /// Whether to count blank lines
     var countBlankLines: Bool = true
 
