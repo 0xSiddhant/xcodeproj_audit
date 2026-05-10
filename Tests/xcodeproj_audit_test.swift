@@ -8,7 +8,7 @@
 import Foundation
 import XCTest
 import PathKit
-@testable import explorer
+@testable import xcodeproj_audit
 
 final class LocalSPMPackageReaderTests: XCTestCase {
 
@@ -78,8 +78,8 @@ final class LocalSPMPackageReaderTests: XCTestCase {
 
     func test_resolveSourceFiles_emptyWhenNoMatchingFiles() throws {
         let pkg = try makeFixturePackage(name: "Pkg4", files: [
-            ("Package.swift", "// swift-tools-version: 5.9"),
             ("README.md", "# hi"),
+            ("LICENSE", "MIT License"),
         ])
         var config = DashboardConfig()
         let files = LocalSPMPackageReader.resolveSourceFiles(packageRoot: pkg, config: config)
